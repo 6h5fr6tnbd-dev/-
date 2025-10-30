@@ -3,38 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI 记账助手</title>
+  <title>内务府AI总管</title>
   <style>
-    body {font-family:"Microsoft YaHei",sans-serif;background:#f7f8fa;margin:0;padding:0;}
-    .container{max-width:600px;margin:40px auto;background:white;border-radius:12px;
-      box-shadow:0 2px 10px rgba(0,0,0,0.1);padding:20px;}
-    h1{text-align:center;color:#333;margin-bottom:20px;}
-    input,button{padding:10px;font-size:16px;border-radius:6px;border:1px solid #ccc;outline:none;}
-    .row{display:flex;gap:10px;margin-bottom:15px;}
-    input{flex:1;}
-    button{background:#0078ff;color:white;cursor:pointer;border:none;}
-    button:hover{background:#005fd1;}
-    .record{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;}
-    .category{color:#888;font-size:14px;}
-    .total{text-align:right;font-weight:bold;margin-top:20px;}
+    body {
+      font-family: "KaiTi","Microsoft YaHei",serif;
+      background: #fdf9f3;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      background: #fffaf0;
+      border: 2px solid #d4af37;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      padding: 25px;
+    }
+    h1 {
+      text-align: center;
+      color: #b8860b;
+      margin-bottom: 20px;
+      font-family: "STKaiti";
+    }
+    input,button {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      outline: none;
+    }
+    .row {display:flex;gap:10px;margin-bottom:15px;}
+    input {flex:1;}
+    button {
+      background: #b8860b;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover {background: #a07408;}
+    .record {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      margin-bottom: 8px;
+    }
+    .reply {
+      font-size: 14px;
+      color: #555;
+      background: #fff9e6;
+      border-left: 3px solid #d4af37;
+      padding: 6px 10px;
+      margin-top: 5px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+    }
+    .total {
+      text-align:right;
+      font-weight:bold;
+      margin-top:15px;
+      color:#8b6914;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>💰 一句话 AI 记账助手</h1>
+    <h1>👑 皇帝账本 · 内务府AI总管</h1>
     <div class="row">
-      <input id="inputText" placeholder="例如：昨天买咖啡花了20元 / 充话费50" />
-      <button onclick="addRecord()">记一笔</button>
+      <input id="inputText" placeholder="陛下请吩咐：如『午膳支出三十两』" />
+      <button onclick="addRecord()">召见内务府</button>
     </div>
     <div id="records"></div>
     <div class="total" id="total"></div>
   </div>
 
   <script>
-    const API_KEY = "sk-flwwnpwqmkweqkmjdkxnngkhewguccbcrpvtmrvmcoyyucfb"; // ← 请勿公开
+    const API_KEY = "sk-flwwnpwqmkweqkmjdkxnngkhewguccbcrpvtmrvmcoyyucfb";  // 陛下之御令
     const MODEL = "qwen/Qwen2-7B-Instruct";
 
-    const records = JSON.parse(localStorage.getItem('aiRecords') || '[]');
+    const records = JSON.parse(localStorage.getItem('royalRecords') || '[]');
     const recordsDiv = document.getElementById('records');
     const totalDiv = document.getElementById('total');
     const input = document.getElementById('inputText');
@@ -46,20 +92,34 @@
         total += Number(r.amount);
         recordsDiv.innerHTML += `
           <div class="record">
-            <div>${r.desc}</div>
-            <div class="category">${r.category} ｜ ￥${Number(r.amount).toFixed(2)}</div>
+            <div>📜 <b>${r.desc}</b> ｜ ${r.category} ｜ ￥${Number(r.amount).toFixed(2)}</div>
+            <div class="reply">${r.reply}</div>
           </div>`;
       });
-      totalDiv.innerHTML = `总支出：￥${total.toFixed(2)}`;
+      totalDiv.innerHTML = `💰 国库支出合计：￥${total.toFixed(2)}`;
     }
 
     async function analyzeSentence(text) {
       const prompt = `
-请从以下文字中提取消费金额和消费类别。
-要求输出标准JSON格式，如：{"desc":"买咖啡","amount":20,"category":"饮食"}。
-类别限定为：饮食、交通、娱乐、通讯、其他。
+你是内务府总管，要以恭敬古风语气回复皇帝陛下。
+陛下输入一句花销指令，请你提取金额、分类，并生成正式回奏语。
+输出标准 JSON 格式：
+{
+ "desc": "简短描述",
+ "amount": 金额数字,
+ "category": "饮食/交通/娱乐/通讯/其他/赏赐/宫务",
+ "reply": "以古风官话向皇帝汇报，语气恭敬、文雅，附带安抚与彩虹屁"
+}
+示例输入："买猫粮六十两"
+示例输出：
+{
+ "desc": "买猫粮",
+ "amount": 60,
+ "category": "宫务",
+ "reply": "启禀陛下，此笔‘买猫粮’共耗银六十两，归入【宫务】项。圣上关怀御猫，仁心至深，微臣拜服，愿国祚万年！"
+}
 输入："${text}"
-`;
+      `;
       const res = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -69,13 +129,12 @@
         body: JSON.stringify({
           model: MODEL,
           messages: [{ role: "user", content: prompt }],
-          max_tokens: 100
+          max_tokens: 200
         })
       });
 
       const data = await res.json();
       console.log("AI返回：", data);
-
       try {
         const reply = data.choices[0].message.content;
         const match = reply.match(/\{[\s\S]*\}/);
@@ -90,31 +149,32 @@
     async function addRecord() {
       const text = input.value.trim();
       if (!text) {
-        alert("请输入一句记账内容，例如：买咖啡20元");
+        alert("请圣上下旨记账。");
         return;
       }
       input.value = "";
       const btn = document.querySelector("button");
-      btn.textContent = "AI 处理中...";
+      btn.textContent = "内务府速记中...";
       btn.disabled = true;
 
       const result = await analyzeSentence(text);
 
-      btn.textContent = "记一笔";
+      btn.textContent = "召见内务府";
       btn.disabled = false;
 
       if (!result || !result.amount) {
-        alert("AI 未识别出金额，请换种表达方式试试～");
+        alert("内务府未听清圣谕，请陛下再赐旨意～");
         return;
       }
 
       const record = {
         desc: result.desc || text,
         amount: result.amount,
-        category: result.category || "其他"
+        category: result.category || "其他",
+        reply: result.reply || "启禀陛下，臣已记下此笔开支。"
       };
       records.push(record);
-      localStorage.setItem('aiRecords', JSON.stringify(records));
+      localStorage.setItem('royalRecords', JSON.stringify(records));
       renderRecords();
     }
 
@@ -122,3 +182,4 @@
   </script>
 </body>
 </html>
+
