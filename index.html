@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 记账助手</title>
+  <style>
+    body {font-family:"Microsoft YaHei",sans-serif;background:#f7f8fa;margin:0;padding:0;}
+    .container{max-width:600px;margin:40px auto;background:white;border-radius:12px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.1);padding:20px;}
+    h1{text-align:center;color:#333;margin-bottom:20px;}
+    input,button{padding:10px;font-size:16px;border-radius:6px;border:1px solid #ccc;outline:none;}
+    .row{display:flex;gap:10px;margin-bottom:15px;}
+    input{flex:1;}
+    button{background:#0078ff;color:white;cursor:pointer;border:none;}
+    button:hover{background:#005fd1;}
+    .record{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;}
+    .category{color:#888;font-size:14px;}
+    .total{text-align:right;font-weight:bold;margin-top:20px;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💰 一句话 AI 记账助手</h1>
+    <div class="row">
+      <input id="inputText" placeholder="例如：昨天买咖啡花了20元 / 充话费50" />
+      <button onclick="addRecord()">记一笔</button>
+    </div>
+    <div id="records"></div>
+    <div class="total" id="total"></div>
+  </div>
+
+  <script>
+    const API_KEY = "sk-flwwnpwqmkweqkmjdkxnngkhewguccbcrpvtmrvmcoyyucfb"; // ← 请勿公开
+    const MODEL = "qwen/Qwen2-7B-Instruct";
+
+    const records = JSON.parse(localStorage.getItem('aiRecords') || '[]');
+    const recordsDiv = document.getElementById('records');
+    const totalDiv = document.getElementById('total');
+    const input = document.getElementById('inputText');
+
+    function renderRecords() {
+      recordsDiv.innerHTML = '';
+      let total = 0;
+      records.forEach(r => {
+        total += Number(r.amount);
+        recordsDiv.innerHTML += `
+          <div class="record">
+            <div>${r.desc}</div>
+            <div class="category">${r.category} ｜ ￥${Number(r.amount).toFixed(2)}</div>
+          </div>`;
+      });
+      totalDiv.innerHTML = `总支出：￥${total.toFixed(2)}`;
+    }
+
+    async function analyzeSentence(text) {
+      const prompt = `
+请从以下文字中提取消费金额和消费类别。
+要求输出标准JSON格式，如：{"desc":"买咖啡","amount":20,"category":"饮食"}。
+类别限定为：饮食、交通、娱乐、通讯、其他。
+输入："${text}"
+`;
+      const res = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 100
+        })
+      });
+
+      const data = await res.json();
+      console.log("AI返回：", data);
+
+      try {
+        const reply = data.choices[0].message.content;
+        const match = reply.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error("AI未返回JSON");
+        return JSON.parse(match[0]);
+      } catch (e) {
+        console.error("解析错误", e);
+        return null;
+      }
+    }
+
+    async function addRecord() {
+      const text = input.value.trim();
+      if (!text) {
+        alert("请输入一句记账内容，例如：买咖啡20元");
+        return;
+      }
+      input.value = "";
+      const btn = document.querySelector("button");
+      btn.textContent = "AI 处理中...";
+      btn.disabled = true;
+
+      const result = await analyzeSentence(text);
+
+      btn.textContent = "记一笔";
+      btn.disabled = false;
+
+      if (!result || !result.amount) {
+        alert("AI 未识别出金额，请换种表达方式试试～");
+        return;
+      }
+
+      const record = {
+        desc: result.desc || text,
+        amount: result.amount,
+        category: result.category || "其他"
+      };
+      records.push(record);
+      localStorage.setItem('aiRecords', JSON.stringify(records));
+      renderRecords();
+    }
+
+    renderRecords();
+  </script>
+</body>
+</html>
